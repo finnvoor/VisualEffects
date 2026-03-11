@@ -3,11 +3,14 @@ package com.finnvoorhees.visualeffects
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Outline
+import android.graphics.RenderEffect
 import android.graphics.RenderNode
+import android.os.Build
 import android.util.AttributeSet
 import android.view.View
 import android.view.ViewOutlineProvider
 import android.widget.FrameLayout
+import androidx.annotation.RequiresApi
 import androidx.core.content.withStyledAttributes
 import androidx.core.view.doOnLayout
 import com.finnvoorhees.visualeffects.effects.BlurBackdropEffect
@@ -189,7 +192,8 @@ open class BackdropView @JvmOverloads constructor(
     }
 
     private fun updateHardwareBlur() {
-        blurNode.setRenderEffect(effect.createHardwareRenderEffect(this))
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
+        Api31RenderEffectCompat.setRenderEffect(blurNode, effect.createHardwareRenderEffect(this))
     }
 
     private fun shouldUpdateRenderEffect(
@@ -238,5 +242,15 @@ open class BackdropView @JvmOverloads constructor(
             current = current.parent as? View
         }
         return null
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    private object Api31RenderEffectCompat {
+        fun setRenderEffect(
+            node: RenderNode,
+            renderEffect: Any?,
+        ) {
+            node.setRenderEffect(renderEffect as? RenderEffect)
+        }
     }
 }

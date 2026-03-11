@@ -1,7 +1,5 @@
 package com.finnvoorhees.visualeffects
 
-import android.graphics.RenderEffect
-
 abstract class BackdropEffect {
-    open fun createHardwareRenderEffect(view: BackdropView): RenderEffect? = null
+    open fun createHardwareRenderEffect(view: BackdropView): Any? = null
 }

@@ -6,62 +6,96 @@ import android.graphics.Matrix
 import android.graphics.RenderEffect
 import android.graphics.RuntimeShader
 import android.graphics.Shader
+import android.os.Build
 import androidx.annotation.RequiresApi
 import com.finnvoorhees.visualeffects.BackdropEffect
 import com.finnvoorhees.visualeffects.BackdropView
 
-@RequiresApi(33)
 class MaskedVariableBlurBackdropEffect(
     private val maskBitmap: Bitmap,
     private val maxRadiusDp: Float,
     private val maxSamples: Int = 20,
     private val minSamplesAtMaxBlur: Int = 8,
 ) : BackdropEffect() {
-    private val horizontalShader = RuntimeShader(VARIABLE_BLUR_SHADER)
-    private val verticalShader = RuntimeShader(VARIABLE_BLUR_SHADER)
-    private val maskMatrix = Matrix()
-
-    override fun createHardwareRenderEffect(view: BackdropView): RenderEffect {
-        val maskShader = BitmapShader(maskBitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
-        maskMatrix.reset()
-        maskMatrix.setScale(
-            view.width.toFloat() / maskBitmap.width.toFloat(),
-            view.height.toFloat() / maskBitmap.height.toFloat(),
-        )
-        maskShader.setLocalMatrix(maskMatrix)
-
-        val radiusPx = (maxRadiusDp * view.resources.displayMetrics.density).coerceAtLeast(0.5f)
-        configureShader(horizontalShader, maskShader, view, radiusPx, vertical = false)
-        configureShader(verticalShader, maskShader, view, radiusPx, vertical = true)
-
-        val horizontalEffect = RenderEffect.createRuntimeShaderEffect(horizontalShader, "source")
-        return RenderEffect.createChainEffect(
-            RenderEffect.createRuntimeShaderEffect(verticalShader, "source"),
-            horizontalEffect,
+    override fun createHardwareRenderEffect(view: BackdropView): Any? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return null
+        return Api33VariableBlur.createEffect(
+            maskBitmap = maskBitmap,
+            maxRadiusDp = maxRadiusDp,
+            maxSamples = maxSamples,
+            minSamplesAtMaxBlur = minSamplesAtMaxBlur,
+            view = view,
         )
     }
 
-    private fun configureShader(
-        shader: RuntimeShader,
-        maskShader: Shader,
-        view: BackdropView,
-        radiusPx: Float,
-        vertical: Boolean,
-    ) {
-        shader.setInputShader("mask", maskShader)
-        shader.setFloatUniform("resolution", view.containerWidthPx, view.containerHeightPx)
-        shader.setFloatUniform("backdropOrigin", view.captureLeftPx, view.captureTopPx)
-        shader.setFloatUniform("backdropSize", view.captureWidthPx, view.captureHeightPx)
-        shader.setFloatUniform("maxRadius", radiusPx)
-        shader.setFloatUniform("maxSamples", maxSamples.coerceIn(1, 24).toFloat())
-        shader.setFloatUniform(
-            "minSamplesAtMaxBlur",
-            minSamplesAtMaxBlur.coerceIn(1, maxSamples.coerceIn(1, 24)).toFloat(),
-        )
-        shader.setFloatUniform("vertical", if (vertical) 1f else 0f)
-    }
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+    private object Api33VariableBlur {
+        fun createEffect(
+            maskBitmap: Bitmap,
+            maxRadiusDp: Float,
+            maxSamples: Int,
+            minSamplesAtMaxBlur: Int,
+            view: BackdropView,
+        ): RenderEffect {
+            val horizontalShader = RuntimeShader(VARIABLE_BLUR_SHADER)
+            val verticalShader = RuntimeShader(VARIABLE_BLUR_SHADER)
+            val maskShader = BitmapShader(maskBitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
+            val maskMatrix = Matrix()
+            maskMatrix.setScale(
+                view.width.toFloat() / maskBitmap.width.toFloat(),
+                view.height.toFloat() / maskBitmap.height.toFloat(),
+            )
+            maskShader.setLocalMatrix(maskMatrix)
 
-    companion object {
+            val clampedMaxSamples = maxSamples.coerceIn(1, 24)
+            val clampedMinSamplesAtMaxBlur = minSamplesAtMaxBlur.coerceIn(1, clampedMaxSamples)
+            val radiusPx = (maxRadiusDp * view.resources.displayMetrics.density).coerceAtLeast(0.5f)
+
+            configureShader(
+                shader = horizontalShader,
+                maskShader = maskShader,
+                view = view,
+                radiusPx = radiusPx,
+                maxSamples = clampedMaxSamples,
+                minSamplesAtMaxBlur = clampedMinSamplesAtMaxBlur,
+                vertical = false,
+            )
+            configureShader(
+                shader = verticalShader,
+                maskShader = maskShader,
+                view = view,
+                radiusPx = radiusPx,
+                maxSamples = clampedMaxSamples,
+                minSamplesAtMaxBlur = clampedMinSamplesAtMaxBlur,
+                vertical = true,
+            )
+
+            val horizontalEffect = RenderEffect.createRuntimeShaderEffect(horizontalShader, "source")
+            return RenderEffect.createChainEffect(
+                RenderEffect.createRuntimeShaderEffect(verticalShader, "source"),
+                horizontalEffect,
+            )
+        }
+
+        private fun configureShader(
+            shader: RuntimeShader,
+            maskShader: Shader,
+            view: BackdropView,
+            radiusPx: Float,
+            maxSamples: Int,
+            minSamplesAtMaxBlur: Int,
+            vertical: Boolean,
+        ) {
+            shader.setInputShader("mask", maskShader)
+            shader.setFloatUniform("resolution", view.containerWidthPx, view.containerHeightPx)
+            shader.setFloatUniform("backdropOrigin", view.captureLeftPx, view.captureTopPx)
+            shader.setFloatUniform("backdropSize", view.captureWidthPx, view.captureHeightPx)
+            shader.setFloatUniform("maxRadius", radiusPx)
+            shader.setFloatUniform("maxSamples", maxSamples.toFloat())
+            shader.setFloatUniform("minSamplesAtMaxBlur", minSamplesAtMaxBlur.toFloat())
+            shader.setFloatUniform("vertical", if (vertical) 1f else 0f)
+        }
+
         private const val VARIABLE_BLUR_SHADER = """
             uniform shader source;
             uniform shader mask;

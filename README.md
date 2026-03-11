@@ -4,7 +4,7 @@
 
 It provides a `BackdropView` that samples content behind it inside a `BackdropContainer`, then applies a GPU `RenderEffect` to that sampled content.
 
-Minimum supported SDK is API 31. Some effects require newer Android versions.
+Minimum supported SDK is API 29. On API 29-30, effects no-op and draw no blur. Some effects require newer Android versions.
 
 <img width="810" height="607" alt="demo" src="https://github.com/user-attachments/assets/8d1f8354-7fb9-4cb2-be85-e5fe244fe849" />
 
@@ -27,11 +27,11 @@ Then add the library dependency in your app or module `build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    implementation("com.github.finnvoor:VisualEffects:1.0.2")
+    implementation("com.github.finnvoor:VisualEffects:1.0.3")
 }
 ```
 
-This version is published through JitPack from the `1.0.2` GitHub release/tag.
+This version is published through JitPack from the `1.0.3` GitHub release/tag.
 
 ## XML usage
 
@@ -104,7 +104,8 @@ Consumers can provide their own effect by subclassing `BackdropEffect` and retur
 
 ```kotlin
 class SepiaBackdropEffect : BackdropEffect() {
-    override fun createHardwareRenderEffect(view: BackdropView): RenderEffect? {
+    override fun createHardwareRenderEffect(view: BackdropView): Any? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return null
         val matrix = ColorMatrix().apply {
             set(
                 floatArrayOf(

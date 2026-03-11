@@ -1,7 +1,7 @@
 [versions]
 agp = "9.1.0"
 compileSdk = "36"
-minSdk = "31"
+minSdk = "29"
 media3 = "1.6.1"
 kotlin = "2.2.10"
 composeBom = "2025.01.01"
