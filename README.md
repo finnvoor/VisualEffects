@@ -27,11 +27,11 @@ Then add the library dependency in your app or module `build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    implementation("com.github.finnvoor:VisualEffects:1.0.3")
+    implementation("com.github.finnvoor:VisualEffects:1.0.4")
 }
 ```
 
-This version is published through JitPack from the `1.0.3` GitHub release/tag.
+This version is published through JitPack from the `1.0.4` GitHub release/tag.
 
 ## XML usage
 
@@ -97,6 +97,49 @@ BackdropContainer(
   A color-filter-based saturation adjustment. Use `0f` for grayscale, `1f` for neutral, and values above `1f` for boosted saturation.
 - `MaskedVariableBlurBackdropEffect`
   API 33+ only. Uses a mask image’s alpha channel to vary blur radius across the view. Alpha `0` means no blur and alpha `1` means maximum blur.
+- `SystemMaterialBackdropEffect`
+  A material-style blur/tint effect that approximates iOS `UIBlurEffect.Style` system materials (`systemUltraThinMaterial`, `systemMaterialLight`, `systemChromeMaterialDark`, etc.).
+
+## SystemMaterialBackdropEffect
+
+`SystemMaterialBackdropEffect` approximates iOS system materials by chaining blur and tint blend passes.
+
+- API behavior:
+  On API 31+, it renders the material chain.
+  On API 29-30, it no-ops (consistent with other effects in this library).
+- Dynamic styles:
+  `systemUltraThinMaterial`, `systemThinMaterial`, `systemMaterial`, `systemThickMaterial`, and `systemChromeMaterial` automatically resolve to light or dark using system night mode.
+- Explicit styles:
+  You can force any concrete variant with `*Light` or `*Dark`.
+
+```kotlin
+Backdrop(
+    modifier = Modifier.size(220.dp, 140.dp),
+    effect = SystemMaterialBackdropEffect(
+        style = SystemMaterialBackdropEffect.Style.systemMaterial,
+    ),
+    downsampleFactor = 5f,
+    cornerRadius = 20.dp,
+)
+```
+
+Supported style cases:
+
+- `systemUltraThinMaterial`
+- `systemThinMaterial`
+- `systemMaterial`
+- `systemThickMaterial`
+- `systemChromeMaterial`
+- `systemUltraThinMaterialLight`
+- `systemThinMaterialLight`
+- `systemMaterialLight`
+- `systemThickMaterialLight`
+- `systemChromeMaterialLight`
+- `systemUltraThinMaterialDark`
+- `systemThinMaterialDark`
+- `systemMaterialDark`
+- `systemThickMaterialDark`
+- `systemChromeMaterialDark`
 
 ## Custom effects
 

@@ -5,6 +5,7 @@ import android.graphics.Canvas
 import android.graphics.Outline
 import android.graphics.RenderEffect
 import android.graphics.RenderNode
+import android.graphics.RectF
 import android.os.Build
 import android.util.AttributeSet
 import android.view.View
@@ -14,6 +15,7 @@ import androidx.annotation.RequiresApi
 import androidx.core.content.withStyledAttributes
 import androidx.core.view.doOnLayout
 import com.finnvoorhees.visualeffects.effects.BlurBackdropEffect
+import kotlin.math.roundToInt
 
 open class BackdropView @JvmOverloads constructor(
     context: Context,
@@ -50,6 +52,14 @@ open class BackdropView @JvmOverloads constructor(
         set(value) {
             if (field === value) return
             field = value
+            resetRenderState()
+            invalidate()
+        }
+
+    internal var composeCaptureRectPx: RectF? = null
+        set(value) {
+            if (rectEquals(field, value)) return
+            field = value?.let(::RectF)
             resetRenderState()
             invalidate()
         }
@@ -154,21 +164,32 @@ open class BackdropView @JvmOverloads constructor(
         val snapshotNode = captureContainer.snapshotNode ?: return
         if (width <= 0 || height <= 0) return
 
-        captureContainer.getLocationOnScreen(containerLocation)
-        getLocationOnScreen(viewLocation)
-        val left = viewLocation[0] - containerLocation[0]
-        val top = viewLocation[1] - containerLocation[1]
-        captureLeftPx = left.toFloat()
-        captureTopPx = top.toFloat()
+        val captureRect = composeCaptureRectPx
+        val left: Float
+        val top: Float
+        if (captureRect != null) {
+            left = captureRect.left
+            top = captureRect.top
+        } else {
+            captureContainer.getLocationOnScreen(containerLocation)
+            getLocationOnScreen(viewLocation)
+            left = (viewLocation[0] - containerLocation[0]).toFloat()
+            top = (viewLocation[1] - containerLocation[1]).toFloat()
+        }
+
+        captureLeftPx = left
+        captureTopPx = top
         captureWidthPx = width.toFloat()
         captureHeightPx = height.toFloat()
         containerWidthPx = captureContainer.width.toFloat()
         containerHeightPx = captureContainer.height.toFloat()
 
-        if (shouldUpdateRenderEffect(left, top)) {
+        val roundedLeft = left.roundToInt()
+        val roundedTop = top.roundToInt()
+        if (shouldUpdateRenderEffect(roundedLeft, roundedTop, width, height)) {
             updateHardwareBlur()
-            lastAppliedLeft = left
-            lastAppliedTop = top
+            lastAppliedLeft = roundedLeft
+            lastAppliedTop = roundedTop
             lastAppliedWidth = width
             lastAppliedHeight = height
             lastAppliedContainerWidth = captureContainer.width
@@ -182,8 +203,8 @@ open class BackdropView @JvmOverloads constructor(
             blurNode.endRecording()
             lastRecordedSnapshotGeneration = captureContainer.snapshotGeneration
         }
-        blurNode.setTranslationX(-left.toFloat())
-        blurNode.setTranslationY(-top.toFloat())
+        blurNode.setTranslationX(-roundedLeft.toFloat())
+        blurNode.setTranslationY(-roundedTop.toFloat())
 
         canvas.save()
         canvas.clipRect(0f, 0f, width.toFloat(), height.toFloat())
@@ -199,11 +220,13 @@ open class BackdropView @JvmOverloads constructor(
     private fun shouldUpdateRenderEffect(
         left: Int,
         top: Int,
+        captureWidth: Int,
+        captureHeight: Int,
     ): Boolean {
         return lastAppliedLeft != left ||
             lastAppliedTop != top ||
-            lastAppliedWidth != width ||
-            lastAppliedHeight != height ||
+            lastAppliedWidth != captureWidth ||
+            lastAppliedHeight != captureHeight ||
             lastAppliedContainerWidth != captureContainer?.width ||
             lastAppliedContainerHeight != captureContainer?.height
     }
@@ -226,6 +249,17 @@ open class BackdropView @JvmOverloads constructor(
     private fun dpToPx(value: Float): Float = value * resources.displayMetrics.density
 
     private fun pxToDp(value: Float): Float = value / resources.displayMetrics.density
+
+    private fun rectEquals(
+        first: RectF?,
+        second: RectF?,
+    ): Boolean {
+        if (first == null || second == null) return first == second
+        return first.left == second.left &&
+            first.top == second.top &&
+            first.right == second.right &&
+            first.bottom == second.bottom
+    }
 
     internal fun samplesFrom(container: BackdropContainer): Boolean {
         return resolveTargetContainer() === container
