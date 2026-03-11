@@ -56,6 +56,12 @@ open class BackdropContainer @JvmOverloads constructor(
 
     private fun shouldDrawChild(child: View, includeBackdropViews: Boolean): Boolean {
         if (child.visibility != VISIBLE) return false
-        return (child is BackdropView) == includeBackdropViews
+        if (child !is BackdropView) return !includeBackdropViews
+        val samplesFromThisContainer = child.samplesFrom(this)
+        return if (includeBackdropViews) {
+            samplesFromThisContainer
+        } else {
+            !samplesFromThisContainer
+        }
     }
 }

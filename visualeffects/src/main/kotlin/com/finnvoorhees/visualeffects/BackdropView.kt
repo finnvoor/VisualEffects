@@ -223,6 +223,14 @@ open class BackdropView @JvmOverloads constructor(
 
     private fun pxToDp(value: Float): Float = value / resources.displayMetrics.density
 
+    internal fun samplesFrom(container: BackdropContainer): Boolean {
+        return resolveTargetContainer() === container
+    }
+
+    private fun resolveTargetContainer(): BackdropContainer? {
+        return captureContainer ?: targetContainer ?: findBackdropContainer()
+    }
+
     private fun findBackdropContainer(): BackdropContainer? {
         var current: View? = parent as? View
         while (current != null) {
