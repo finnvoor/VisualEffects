@@ -27,11 +27,11 @@ Then add the library dependency in your app or module `build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    implementation("com.github.finnvoor:VisualEffects:1.0.4")
+    implementation("com.github.finnvoor:VisualEffects:1.0.5")
 }
 ```
 
-This version is published through JitPack from the `1.0.4` GitHub release/tag.
+This version is published through JitPack from the `1.0.5` GitHub release/tag.
 
 ## XML usage
 

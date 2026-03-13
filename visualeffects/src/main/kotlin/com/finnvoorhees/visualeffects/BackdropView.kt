@@ -10,6 +10,7 @@ import android.os.Build
 import android.util.AttributeSet
 import android.view.View
 import android.view.ViewOutlineProvider
+import android.view.ViewTreeObserver
 import android.widget.FrameLayout
 import androidx.annotation.RequiresApi
 import androidx.core.content.withStyledAttributes
@@ -34,6 +35,13 @@ open class BackdropView @JvmOverloads constructor(
     private var lastAppliedHeight = -1
     private var lastAppliedContainerWidth = -1
     private var lastAppliedContainerHeight = -1
+    private var isPreDrawListenerRegistered = false
+    private val preDrawInvalidateListener = ViewTreeObserver.OnPreDrawListener {
+        if (isShown) {
+            invalidate()
+        }
+        true
+    }
 
     internal var captureLeftPx: Float = 0f
         private set
@@ -129,12 +137,12 @@ open class BackdropView @JvmOverloads constructor(
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
-        captureContainer = targetContainer ?: findBackdropContainer()
-        updateHardwareBlur()
-        invalidate()
+        reinitializeRenderPipeline()
+        updatePreDrawInvalidationRegistration()
     }
 
     override fun onDetachedFromWindow() {
+        unregisterPreDrawInvalidation()
         captureContainer = null
         resetRenderState()
         blurNode.discardDisplayList()
@@ -150,7 +158,10 @@ open class BackdropView @JvmOverloads constructor(
 
     override fun onVisibilityAggregated(isVisible: Boolean) {
         super.onVisibilityAggregated(isVisible)
-        if (isVisible) invalidate()
+        if (isVisible) {
+            reinitializeRenderPipeline()
+        }
+        updatePreDrawInvalidationRegistration()
     }
 
     override fun draw(canvas: Canvas) {
@@ -244,6 +255,40 @@ open class BackdropView @JvmOverloads constructor(
         lastAppliedHeight = -1
         lastAppliedContainerWidth = -1
         lastAppliedContainerHeight = -1
+    }
+
+    private fun reinitializeRenderPipeline() {
+        captureContainer = targetContainer ?: findBackdropContainer()
+        resetRenderState()
+        blurNode.discardDisplayList()
+        updateHardwareBlur()
+        invalidate()
+    }
+
+    private fun updatePreDrawInvalidationRegistration() {
+        val shouldRegister = isAttachedToWindow && isShown
+        if (shouldRegister) {
+            registerPreDrawInvalidation()
+        } else {
+            unregisterPreDrawInvalidation()
+        }
+    }
+
+    private fun registerPreDrawInvalidation() {
+        if (isPreDrawListenerRegistered) return
+        val observer = viewTreeObserver
+        if (!observer.isAlive) return
+        observer.addOnPreDrawListener(preDrawInvalidateListener)
+        isPreDrawListenerRegistered = true
+    }
+
+    private fun unregisterPreDrawInvalidation() {
+        if (!isPreDrawListenerRegistered) return
+        val observer = viewTreeObserver
+        if (observer.isAlive) {
+            observer.removeOnPreDrawListener(preDrawInvalidateListener)
+        }
+        isPreDrawListenerRegistered = false
     }
 
     private fun dpToPx(value: Float): Float = value * resources.displayMetrics.density

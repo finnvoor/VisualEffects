@@ -5,4 +5,4 @@ plugins {
 }
 
 group = "com.finnvoorhees"
-version = "1.0.3"
+version = "1.0.5"
